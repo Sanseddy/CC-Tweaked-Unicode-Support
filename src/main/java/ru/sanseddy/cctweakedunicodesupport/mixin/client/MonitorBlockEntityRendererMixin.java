@@ -46,10 +46,13 @@ public class MonitorBlockEntityRendererMixin {
 
         var pose = transform.last().pose();
         var foregroundPose = new org.joml.Matrix4f(pose).translate(0.0f, 0.0f, DEPTH_OFFSET * 2.0f);
-        var terminalEmitter = new FixedWidthFontRenderer.QuadEmitter(
-            foregroundPose, bufferSource.getBuffer(dan200.computercraft.client.render.RenderTypes.TERMINAL)
-        );
         var palette = terminal.getPalette();
+
+        // Pass 1: Render CC terminal font characters and cursor using RenderTypes.TERMINAL.
+        // This pass must completely finish before any call to WideGlyphRenderer.draw(),
+        // because WideGlyphRenderer requests font render types from MultiBufferSource,
+        // which ends the active batch for RenderTypes.TERMINAL!
+        FixedWidthFontRenderer.QuadEmitter terminalEmitter = null;
 
         for (var row = 0; row < terminal.getHeight(); row++) {
             var line = terminal.getLine(row);
@@ -60,7 +63,6 @@ public class MonitorBlockEntityRendererMixin {
                 var cell = line.charAt(col);
                 if (!WideGlyphRenderer.isLead(line, col)) continue;
 
-                var colour = palette.getRenderColours(FixedWidthFontRenderer.getColour(colourLine.charAt(col), Colour.BLACK));
                 var codepoint = WideGlyphRenderer.codepoint(line, col);
                 var glyphX = offset;
                 offset += WideGlyphRenderer.cellWidth();
@@ -69,17 +71,17 @@ public class MonitorBlockEntityRendererMixin {
 
                 var terminalGlyph = CraftOsCharset.terminalOnlyGlyph(codepoint);
                 if (terminalGlyph >= 0) {
+                    if (terminalEmitter == null) {
+                        terminalEmitter = new FixedWidthFontRenderer.QuadEmitter(
+                            foregroundPose, bufferSource.getBuffer(dan200.computercraft.client.render.RenderTypes.TERMINAL)
+                        );
+                    }
+                    var colour = palette.getRenderColours(FixedWidthFontRenderer.getColour(colourLine.charAt(col), Colour.BLACK));
                     FixedWidthFontRendererInvoker.cc_tweaked_unicode_support$drawChar(
                         terminalEmitter,
                         glyphX,
                         row * FixedWidthFontRenderer.FONT_HEIGHT,
                         terminalGlyph, colour, LightTexture.FULL_BRIGHT
-                    );
-                } else {
-                    WideGlyphRenderer.draw(
-                        bufferSource, pose,
-                        glyphX, row * FixedWidthFontRenderer.FONT_HEIGHT,
-                        codepoint, colour, LightTexture.FULL_BRIGHT, DEPTH_OFFSET * 2.0f
                     );
                 }
             }
@@ -89,10 +91,43 @@ public class MonitorBlockEntityRendererMixin {
             var cursorY = terminal.getCursorY();
             var cursorX = WideGlyphRenderer.xAt(terminal.getLine(cursorY), terminal.getCursorX());
             var colour = palette.getRenderColours(15 - terminal.getTextColour());
+            if (terminalEmitter == null) {
+                terminalEmitter = new FixedWidthFontRenderer.QuadEmitter(
+                    foregroundPose, bufferSource.getBuffer(dan200.computercraft.client.render.RenderTypes.TERMINAL)
+                );
+            }
             FixedWidthFontRendererInvoker.cc_tweaked_unicode_support$drawChar(
                 terminalEmitter, cursorX, cursorY * FixedWidthFontRenderer.FONT_HEIGHT,
                 '_', colour, LightTexture.FULL_BRIGHT
             );
+        }
+
+        // Pass 2: Render all Unicode / non-terminal glyphs using Minecraft font.
+        for (var row = 0; row < terminal.getHeight(); row++) {
+            var line = terminal.getLine(row);
+            var colourLine = terminal.getTextColourLine(row);
+
+            var offset = 0;
+            for (var col = 0; col < line.length(); col++) {
+                var cell = line.charAt(col);
+                if (!WideGlyphRenderer.isLead(line, col)) continue;
+
+                var codepoint = WideGlyphRenderer.codepoint(line, col);
+                var glyphX = offset;
+                offset += WideGlyphRenderer.cellWidth();
+
+                if (cell == 0 || cell == ' ') continue;
+
+                var terminalGlyph = CraftOsCharset.terminalOnlyGlyph(codepoint);
+                if (terminalGlyph < 0) {
+                    var colour = palette.getRenderColours(FixedWidthFontRenderer.getColour(colourLine.charAt(col), Colour.BLACK));
+                    WideGlyphRenderer.draw(
+                        bufferSource, pose,
+                        glyphX, row * FixedWidthFontRenderer.FONT_HEIGHT,
+                        codepoint, colour, LightTexture.FULL_BRIGHT, DEPTH_OFFSET * 2.0f
+                    );
+                }
+            }
         }
     }
 }

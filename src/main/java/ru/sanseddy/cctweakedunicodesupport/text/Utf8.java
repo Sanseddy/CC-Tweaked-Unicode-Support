@@ -24,16 +24,6 @@ public final class Utf8 {
         while (i < raw.length()) {
             var consumed = sequenceLength(raw, i);
             var codepoint = codepoint(raw, i, consumed);
-
-            if (isAstralText(codepoint)) {
-                var pair = Character.toChars(codepoint);
-                cells[length++] = pair[0];
-                cells[length++] = pair[1];
-                changed = true;
-                i += consumed;
-                continue;
-            }
-
             var cell = cell(codepoint, raw.charAt(i) & 0xFF, consumed);
 
             if (consumed != 1 || cell != raw.charAt(i)) changed = true;
@@ -49,16 +39,8 @@ public final class Utf8 {
         while (i < raw.length()) {
             var consumed = sequenceLength(raw, i);
             var codepoint = codepoint(raw, i, consumed);
-            var occupied = 1;
-            if (isAstralText(codepoint)) {
-                var pair = Character.toChars(codepoint);
-                cells[i] = pair[0];
-                cells[i + 1] = pair[1];
-                occupied = 2;
-            } else {
-                cells[i] = cell(codepoint, raw.charAt(i) & 0xFF, consumed);
-            }
-            for (var k = occupied; k < consumed; k++) cells[i + k] = CraftOsCharset.CONTINUATION;
+            cells[i] = cell(codepoint, raw.charAt(i) & 0xFF, consumed);
+            for (var k = 1; k < consumed; k++) cells[i + k] = CraftOsCharset.CONTINUATION;
             i += consumed;
         }
         return new String(cells);
@@ -73,14 +55,7 @@ public final class Utf8 {
             var consumed = sequenceLength(bytes, offset + i, offset + length);
             var codepoint = codepoint(bytes, offset + i, consumed);
             leadOffset[count] = i;
-            if (isAstralText(codepoint)) {
-                var pair = Character.toChars(codepoint);
-                cells[count++] = pair[0];
-                leadOffset[count] = i;
-                cells[count++] = pair[1];
-            } else {
-                cells[count++] = cell(codepoint, bytes[offset + i] & 0xFF, consumed);
-            }
+            cells[count++] = cell(codepoint, bytes[offset + i] & 0xFF, consumed);
             i += consumed;
         }
         return new Cells(cells, leadOffset, count);
@@ -112,11 +87,7 @@ public final class Utf8 {
         if (CraftOsCharset.isInternalMarker(codepoint)) return '\uFFFD';
         if (codepoint <= 0xFFFF) return (char) codepoint;
 
-        return REPLACEMENT;
-    }
-
-    private static boolean isAstralText(int codepoint) {
-        return codepoint > 0xFFFF;
+        return CraftOsCharset.toAstralCell(codepoint);
     }
 
     public static int sequenceLength(byte[] bytes, int index, int limit) {
@@ -212,24 +183,21 @@ public final class Utf8 {
                 continue;
             }
 
-            var lead = bytes[i] & 0xFF;
-            var consumed = lead < 0x80 ? 1 : lead < 0xE0 ? 2 : 3;
-            if (i + consumed > limit) {
-                out[cell] = ' ';
-                i = limit;
-                continue;
+            var consumed = sequenceLength(bytes, i, limit);
+            var codepoint = codepoint(bytes, i, consumed);
+            if (consumed == 1) {
+                out[cell] = CraftOsCharset.toCell(bytes[i] & 0xFF);
+            } else if (codepoint > 0xFFFF) {
+                out[cell] = CraftOsCharset.toAstralCell(codepoint);
+            } else {
+                out[cell] = (char) codepoint;
             }
-
-            var codepoint = lead;
-            if (consumed > 1) {
-                codepoint = lead & 0x7F >> consumed;
-                for (var b = i + 1; b < i + consumed; b++) codepoint = codepoint << 6 | bytes[b] & 0x3F;
-            }
-            out[cell] = (char) codepoint;
             i += consumed;
         }
         return i;
     }
+
+
 
     public static void encodePreferLegacy(int codepoint, ByteArrayOutputStream out) {
         if (CraftOsCharset.isInternalMarker(codepoint)) {

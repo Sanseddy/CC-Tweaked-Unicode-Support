@@ -27,17 +27,22 @@ public class CCTweakedUnicodeSupport {
     private static void verifyUnicodeLengthOperator() {
         try {
             var cyrillicLetter = LuaString.valueOf(new byte[]{(byte) 0xD0, (byte) 0xAF});
-            var actual = OperationHelper.length(new LuaState(), cyrillicLetter).checkInteger();
-            if (actual != 1) {
-                throw new IllegalStateException("Cobalt's # operator counts UTF-8 bytes (expected 1, got " + actual + ")");
+            var hashActual = OperationHelper.length(new LuaState(), cyrillicLetter).checkInteger();
+            if (hashActual != 1) {
+                throw new IllegalStateException(
+                    "Cobalt's # operator counts UTF-8 bytes instead of Unicode characters (#="
+                        + hashActual + "). Ensure the patched Cobalt library is active."
+                );
             }
-            LOGGER.info("Unicode-aware Lua # operator enabled");
-        } catch (RuntimeException | Error failure) {
-            throw failure;
+            LOGGER.info("Verified Unicode-aware Lua string length contract (# operator is active)");
+        } catch (IllegalStateException e) {
+            throw e;
         } catch (Throwable failure) {
-            throw new IllegalStateException("Could not verify Cobalt's Unicode length operator", failure);
+            throw new IllegalStateException("Failed to verify Cobalt Unicode length operator", failure);
         }
     }
+
+
 
     private static void registerPayloads(RegisterPayloadHandlersEvent event) {
 
@@ -45,9 +50,12 @@ public class CCTweakedUnicodeSupport {
             context.enqueueWork(() -> {
                 if (!payload.isValid()) return;
                 var player = context.player();
-                if (player.containerMenu.containerId == payload.containerId()
-                    && player.containerMenu instanceof ComputerMenu menu) {
-                    menu.getComputer().queueEvent("char", new Object[]{Utf8.encodePreferLegacy(payload.codepoint())});
+                if (player.containerMenu.containerId == payload.containerId()) {
+                    if (player.containerMenu instanceof ComputerMenu menu) {
+                        menu.getComputer().queueEvent("char", new Object[]{Utf8.encodePreferLegacy(payload.codepoint())});
+                    } else {
+                        ru.sanseddy.cctweakedunicodesupport.compat.CCTerminalsCompat.tryHandleChar(player.containerMenu, payload.codepoint());
+                    }
                 }
             })
         );

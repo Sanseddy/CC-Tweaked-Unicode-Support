@@ -9,6 +9,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import ru.sanseddy.cctweakedunicodesupport.text.CraftOsCharset;
 import ru.sanseddy.cctweakedunicodesupport.text.Utf8;
 
 import java.io.ByteArrayOutputStream;
@@ -32,7 +33,12 @@ public class NetworkedTerminalMixin {
             var textColour = terminal.getTextColourLine(y);
             var backColour = terminal.getBackgroundColourLine(y);
 
-            for (var x = 0; x < width; x++) Utf8.encode(text.charAt(x), contents);
+            for (var x = 0; x < width; x++) {
+                var ch = text.charAt(x);
+                var codepoint = CraftOsCharset.cellToCodepoint(ch);
+                Utf8.encode(codepoint, contents);
+            }
+
             for (var x = 0; x < width; x++) {
                 contents.write(Terminal.getColour(backColour.charAt(x), Colour.BLACK) << 4
                     | Terminal.getColour(textColour.charAt(x), Colour.WHITE));
@@ -90,6 +96,7 @@ public class NetworkedTerminalMixin {
         }
 
         terminal.setChanged();
+        ru.sanseddy.cctweakedunicodesupport.compat.CCGraphicsCompat.onNetworkedTerminalRead((NetworkedTerminal) (Object) this, state, ci);
         ci.cancel();
     }
 }

@@ -14,7 +14,7 @@ class PrintoutCodecTest {
     void ordinaryStringCodecPreservesAliasesAstralPairsAndContinuations() {
         var smile = new String(Character.toChars(0x1F642));
         var decodedSmile = Utf8.decode(byteString(smile));
-        var text = CraftOsCharset.toCell(0x81) + decodedSmile + " ".repeat(PrintoutData.LINE_LENGTH - 3);
+        var text = CraftOsCharset.toCell(0x81) + decodedSmile + " ".repeat(PrintoutData.LINE_LENGTH - 2);
         var line = new PrintoutData.Line(text, "f".repeat(PrintoutData.LINE_LENGTH));
         var original = new PrintoutData("Unicode", Collections.nCopies(PrintoutData.LINES_PER_PAGE, line));
 

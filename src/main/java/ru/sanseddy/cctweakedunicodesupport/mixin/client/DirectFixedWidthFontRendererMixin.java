@@ -17,4 +17,12 @@ public class DirectFixedWidthFontRendererMixin {
     ) {
         ci.cancel();
     }
+
+    @Inject(method = "drawCursor", at = @At("HEAD"), cancellable = true)
+    private static void cc_tweaked_unicode_support$cancelDirectCursor(
+        DirectFixedWidthFontRenderer.QuadEmitter emitter, float x, float y,
+        dan200.computercraft.core.terminal.Terminal terminal, CallbackInfo ci
+    ) {
+        ci.cancel();
+    }
 }

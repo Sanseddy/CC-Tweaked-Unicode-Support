@@ -16,7 +16,7 @@ import ru.sanseddy.cctweakedunicodesupport.client.WideGlyphRenderer;
 import ru.sanseddy.cctweakedunicodesupport.network.WideCharPayload;
 import ru.sanseddy.cctweakedunicodesupport.text.CraftOsCharset;
 
-@Mixin(TerminalWidget.class)
+@Mixin(value = TerminalWidget.class, priority = 1500)
 public class TerminalWidgetMixin {
     @Shadow
     @Final
@@ -79,7 +79,7 @@ public class TerminalWidgetMixin {
     private void cc_tweaked_unicode_support$monospaceMouseClick(
         double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir
     ) {
-        if (!inTermRegion(mouseX, mouseY)) return;
+        if (cir.isCancelled() || !inTermRegion(mouseX, mouseY)) return;
         var row = (int) ((mouseY - innerY) / dan200.computercraft.client.render.text.FixedWidthFontRenderer.FONT_HEIGHT);
         var column = WideGlyphRenderer.columnAt(terminal.getLine(row), mouseX - innerX);
         if (column < 0) return;
@@ -91,7 +91,7 @@ public class TerminalWidgetMixin {
     private void cc_tweaked_unicode_support$monospaceMouseRelease(
         double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir
     ) {
-        if (!inTermRegion(mouseX, mouseY)) return;
+        if (cir.isCancelled() || !inTermRegion(mouseX, mouseY)) return;
         var row = (int) ((mouseY - innerY) / dan200.computercraft.client.render.text.FixedWidthFontRenderer.FONT_HEIGHT);
         var column = WideGlyphRenderer.columnAt(terminal.getLine(row), mouseX - innerX);
         if (column < 0) return;
@@ -104,7 +104,7 @@ public class TerminalWidgetMixin {
         double mouseX, double mouseY, int button, double dragX, double dragY,
         CallbackInfoReturnable<Boolean> cir
     ) {
-        if (!inTermRegion(mouseX, mouseY)) return;
+        if (cir.isCancelled() || !inTermRegion(mouseX, mouseY)) return;
         var row = (int) ((mouseY - innerY) / dan200.computercraft.client.render.text.FixedWidthFontRenderer.FONT_HEIGHT);
         var column = WideGlyphRenderer.columnAt(terminal.getLine(row), mouseX - innerX);
         if (column < 0) return;
@@ -117,7 +117,7 @@ public class TerminalWidgetMixin {
         double mouseX, double mouseY, double deltaX, double deltaY,
         CallbackInfoReturnable<Boolean> cir
     ) {
-        if (!inTermRegion(mouseX, mouseY) || deltaY == 0) return;
+        if (cir.isCancelled() || !inTermRegion(mouseX, mouseY) || deltaY == 0) return;
         var row = (int) ((mouseY - innerY) / dan200.computercraft.client.render.text.FixedWidthFontRenderer.FONT_HEIGHT);
         var column = WideGlyphRenderer.columnAt(terminal.getLine(row), mouseX - innerX);
         if (column < 0) return;

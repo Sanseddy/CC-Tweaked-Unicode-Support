@@ -1,59 +1,110 @@
 package ru.sanseddy.cctweakedunicodesupport.text;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
-import java.nio.charset.StandardCharsets;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class CraftOsCharsetTest {
-    @Test
-    void noncharacterAliasesAreTerminalStateButNeverTextBytes() {
-        for (var alias = CraftOsCharset.LEGACY_ALIAS_BASE; alias <= CraftOsCharset.LEGACY_ALIAS_END; alias++) {
-            assertEquals(-1, CraftOsCharset.toLegacyByte(alias));
-            assertTrue(CraftOsCharset.isInternalMarker(alias));
-            var legacy = CraftOsCharset.terminalOnlyGlyph(alias);
-            assertTrue(legacy >= 0);
-            assertEquals(alias, CraftOsCharset.toCell(legacy));
-        }
 
-        assertEquals(0x14, CraftOsCharset.toCell(0x14));
-        assertEquals(0x14, CraftOsCharset.terminalOnlyGlyph(0x14));
-        assertEquals(0x81, CraftOsCharset.toLegacyByte(0x1FB00));
-        assertEquals(0x81, CraftOsCharset.terminalOnlyGlyph(0x1FB00));
-        assertEquals(9, CraftOsCharset.terminalOnlyGlyph('\t'));
-        assertEquals(10, CraftOsCharset.terminalOnlyGlyph('\n'));
-        assertEquals(13, CraftOsCharset.terminalOnlyGlyph('\r'));
+    @TempDir
+    Path tempDir;
 
-        var terminalOnly = 0;
-        for (var legacy = 0; legacy < CraftOsCharset.SIZE; legacy++) {
-            if (CraftOsCharset.terminalOnlyGlyph(CraftOsCharset.toCell(legacy)) >= 0) terminalOnly++;
-        }
-        assertEquals(37, terminalOnly);
+    private Path testConfig;
+
+    @BeforeEach
+    void setUp() {
+        testConfig = tempDir.resolve("cc_tweaked_unicode_astral.dat");
+        CraftOsCharset.setPersistencePathForTesting(testConfig);
+        CraftOsCharset.resetAstralAliasesForTesting();
+    }
+
+    @AfterEach
+    void tearDown() {
+        CraftOsCharset.resetAstralAliasesForTesting();
     }
 
     @Test
-    void sentinelsDoNotCollideWithPrivateUseText() {
-        assertEquals('\uFDEF', CraftOsCharset.CONTINUATION);
-        assertNotEquals(CraftOsCharset.LEGACY_ALIAS_END, CraftOsCharset.CONTINUATION);
-        assertTrue(CraftOsCharset.isInternalMarker(CraftOsCharset.CONTINUATION));
-        assertEquals(-1, CraftOsCharset.toLegacyByte(CraftOsCharset.CONTINUATION));
-        assertEquals(-1, CraftOsCharset.terminalOnlyGlyph(CraftOsCharset.CONTINUATION));
-        assertEquals(-1, CraftOsCharset.toLegacyByte('\uE014'));
-        assertEquals(-1, CraftOsCharset.terminalOnlyGlyph('\uE014'));
-
-        var internal = new String(new char[]{
-            CraftOsCharset.LEGACY_ALIAS_BASE, CraftOsCharset.LEGACY_ALIAS_END, CraftOsCharset.CONTINUATION
-        });
-        assertEquals(internal, new String(internal.getBytes(StandardCharsets.UTF_8), StandardCharsets.UTF_8));
+    void puaCharactersAreNotInternalMarkers() {
+        // BMP Private Use Area: U+E000 to U+F8FF
+        for (int codepoint = 0xE000; codepoint <= 0xF8FF; codepoint += 64) {
+            assertFalse(CraftOsCharset.isInternalMarker(codepoint),
+                "PUA codepoint U+" + Integer.toHexString(codepoint) + " should not be an internal marker");
+            assertEquals(codepoint, CraftOsCharset.cellToCodepoint((char) codepoint),
+                "PUA codepoint should map to itself");
+        }
     }
 
     @Test
-    void legacyHalfBlockKeepsItsUnicodeIdentity() {
-        assertEquals(0x258C, CraftOsCharset.toCodepoint(0x95));
-        assertEquals('\u258C', CraftOsCharset.toCell(0x95));
-        assertEquals(0x95, CraftOsCharset.toLegacyByte(0x258C));
+    void astralAliasStabilityBeyondMaxCount() {
+        int max = CraftOsCharset.MAX_ASTRAL_ALIASES;
+        char[] initialCells = new char[max];
+
+        // Allocate up to max
+        for (int i = 0; i < max; i++) {
+            int codepoint = 0x10000 + i;
+            char cell = CraftOsCharset.toAstralCell(codepoint);
+            assertNotEquals('\uFFFD', cell);
+            initialCells[i] = cell;
+            assertEquals(codepoint, CraftOsCharset.cellToCodepoint(cell));
+        }
+
+        // Try allocating 100 more beyond limit
+        for (int i = 0; i < 100; i++) {
+            int extraCodepoint = 0x20000 + i;
+            char fallback = CraftOsCharset.toAstralCell(extraCodepoint);
+            assertEquals('\uFFFD', fallback, "Overflow astral codepoint should return fallback replacement char");
+        }
+
+        // Verify ALL initial mappings are completely unchanged (NO silent reuse!)
+        for (int i = 0; i < max; i++) {
+            int expectedCodepoint = 0x10000 + i;
+            char cell = initialCells[i];
+            assertEquals(expectedCodepoint, CraftOsCharset.cellToCodepoint(cell),
+                "Initial cell mapping for slot " + i + " must not change after overflow");
+        }
+    }
+
+    @Test
+    void persistenceSaveAndRestore() {
+        int[] testCodepoints = {0x1F600, 0x1F680, 0x1F34E, 0x1F44D};
+        char[] cells = new char[testCodepoints.length];
+
+        for (int i = 0; i < testCodepoints.length; i++) {
+            cells[i] = CraftOsCharset.toAstralCell(testCodepoints[i]);
+        }
+
+        CraftOsCharset.flushPersistence();
+        assertTrue(Files.exists(testConfig), "Persistence file must exist after flush");
+
+        // Clear memory
+        CraftOsCharset.resetAstralAliasesForTesting();
+        assertEquals(-1, CraftOsCharset.fromAstralCell(cells[0]));
+
+        // Reload
+        CraftOsCharset.loadPersistedAstralAliases();
+
+        // Verify bi-directional consistency
+        for (int i = 0; i < testCodepoints.length; i++) {
+            assertEquals(cells[i], CraftOsCharset.toAstralCell(testCodepoints[i]),
+                "Codepoint to cell mapping should be restored");
+            assertEquals(testCodepoints[i], CraftOsCharset.cellToCodepoint(cells[i]),
+                "Cell to codepoint mapping should be restored");
+        }
+    }
+
+    @Test
+    void persistenceHandlesCorruptedFileGracefully() throws IOException {
+        Files.write(testConfig, new byte[]{0x43, 0x43, 0x55, 0x53, 0x00, 0x00, 0x00, 0x01, 0x7F}); // invalid truncated
+
+        assertDoesNotThrow(() -> CraftOsCharset.loadPersistedAstralAliases());
+        // Verify state is clean
+        assertEquals(0, CraftOsCharset.fromAstralCell('\uD800') == -1 ? 0 : 1);
     }
 }

@@ -28,21 +28,11 @@ public final class WideGlyphRenderer {
     }
 
     public static int codepoint(TextBuffer text, int index) {
-        var first = text.charAt(index);
-        if (Character.isHighSurrogate(first)
-            && index + 1 < text.length() && Character.isLowSurrogate(text.charAt(index + 1))) {
-            return Character.toCodePoint(first, text.charAt(index + 1));
-        }
-        return first;
-    }
-
-    public static boolean isTrailingSurrogate(TextBuffer text, int index) {
-        return index > 0 && Character.isHighSurrogate(text.charAt(index - 1))
-            && Character.isLowSurrogate(text.charAt(index));
+        return CraftOsCharset.cellToCodepoint(text.charAt(index));
     }
 
     public static boolean isLead(TextBuffer text, int index) {
-        return text.charAt(index) != CraftOsCharset.CONTINUATION && !isTrailingSurrogate(text, index);
+        return text.charAt(index) != CraftOsCharset.CONTINUATION;
     }
 
     public static int cellWidth() {
@@ -64,25 +54,13 @@ public final class WideGlyphRenderer {
     }
 
     public static int xAt(TextBuffer text, int endExclusive) {
-        var width = 0;
-        var end = Math.min(Math.max(endExclusive, 0), text.length());
-        for (var i = 0; i < end; i++) width += advance(text, i);
-        return width;
+        return Math.max(0, endExclusive) * cellWidth();
     }
 
     public static int columnAt(TextBuffer text, double pixelX) {
         if (text.length() == 0 || pixelX < 0) return -1;
-
-        var x = 0;
-        var lastLead = 0;
-        for (var i = 0; i < text.length(); i++) {
-            var advance = advance(text, i);
-            if (advance == 0) continue;
-            lastLead = i;
-            if (pixelX < x + advance) return i;
-            x += advance;
-        }
-        return lastLead;
+        int col = (int) (pixelX / cellWidth());
+        return Math.min(col, text.length() - 1);
     }
 
     private static final List<Glyph> PENDING = new ArrayList<>();
@@ -156,6 +134,9 @@ public final class WideGlyphRenderer {
     }
 
     private static String glyph(int codepoint) {
+        if (codepoint < 0 || (codepoint >= 0xD800 && codepoint <= 0xDFFF) || codepoint > Character.MAX_CODE_POINT) {
+            return "\uFFFD";
+        }
         if (codepoint <= Character.MAX_VALUE) {
             var cached = BMP_GLYPHS[codepoint];
             if (cached == null) BMP_GLYPHS[codepoint] = cached = String.valueOf((char) codepoint);
@@ -163,4 +144,5 @@ public final class WideGlyphRenderer {
         }
         return ASTRAL_GLYPHS.computeIfAbsent(codepoint, value -> new String(Character.toChars(value)));
     }
+
 }

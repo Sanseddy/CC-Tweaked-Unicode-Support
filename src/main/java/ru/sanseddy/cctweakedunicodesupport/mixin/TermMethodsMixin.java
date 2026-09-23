@@ -33,35 +33,10 @@ public abstract class TermMethodsMixin {
     private void cc_tweaked_unicode_support$blitDecoded(
         ByteBuffer text, ByteBuffer textColour, ByteBuffer backgroundColour, CallbackInfo ci
     ) throws LuaException {
-        var cells = Utf8.decode(Utf8.asByteString(text));
-        var characterCount = cells.codePointCount(0, cells.length());
-        if (textColour.remaining() != characterCount || backgroundColour.remaining() != characterCount) {
-            throw new LuaException("Arguments must be the same length");
-        }
-
-        var terminal = getTerminal();
-        synchronized (terminal) {
-            var x = terminal.getCursorX();
-            var y = terminal.getCursorY();
-            if (y >= 0 && y < terminal.getHeight()) {
-                var line = terminal.getLine(y);
-                var foreground = terminal.getTextColourLine(y);
-                var background = terminal.getBackgroundColourLine(y);
-                var colourIndex = 0;
-                for (var i = 0; i < cells.length(); i++) {
-                    var trailingSurrogate = i > 0 && Character.isHighSurrogate(cells.charAt(i - 1))
-                        && Character.isLowSurrogate(cells.charAt(i));
-                    if (trailingSurrogate) colourIndex--;
-                    line.setChar(x + i, cells.charAt(i));
-                    foreground.setChar(x + i, (char) (textColour.get(textColour.position() + colourIndex) & 0xFF));
-                    background.setChar(x + i, (char) (backgroundColour.get(backgroundColour.position() + colourIndex) & 0xFF));
-                    colourIndex++;
-                }
-                terminal.setChanged();
-            }
-
-            terminal.setCursorPos(x + cells.length(), y);
-        }
+        ru.sanseddy.cctweakedunicodesupport.text.TermBlitHelper.blit(getTerminal(), text, textColour, backgroundColour);
         ci.cancel();
     }
+
+
+
 }

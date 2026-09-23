@@ -18,7 +18,9 @@ class Utf8Test {
         assertEquals("Привет", Utf8.decode(byteString("Привет")));
         assertEquals(51, Utf8.decode(byteString("Я".repeat(51))).length());
         var astral = new String(Character.toChars(0x1F642));
-        assertEquals(astral, Utf8.decode(byteString(astral)));
+        var decodedAstral = Utf8.decode(byteString(astral));
+        assertEquals(1, decodedAstral.length());
+        assertEquals(0x1F642, CraftOsCharset.cellToCodepoint(decodedAstral.charAt(0)));
     }
 
     @Test
@@ -41,8 +43,8 @@ class Utf8Test {
         var astral = new String(Character.toChars(0x1F642));
         var wideAstral = Utf8.decodeWide(byteString(astral));
         assertEquals(4, wideAstral.length());
-        assertEquals(Character.highSurrogate(0x1F642), wideAstral.charAt(0));
-        assertEquals(Character.lowSurrogate(0x1F642), wideAstral.charAt(1));
+        assertEquals(CraftOsCharset.toAstralCell(0x1F642), wideAstral.charAt(0));
+        assertEquals(CraftOsCharset.CONTINUATION, wideAstral.charAt(1));
         assertEquals(CraftOsCharset.CONTINUATION, wideAstral.charAt(2));
         assertEquals(CraftOsCharset.CONTINUATION, wideAstral.charAt(3));
     }
@@ -75,18 +77,22 @@ class Utf8Test {
 
     @Test
     void terminalWireEncodingRoundTripsEveryCellKind() {
-        var astral = Character.toChars(0x1F642);
+        char astralCell = CraftOsCharset.toAstralCell(0x1F642);
         var expected = new char[]{
-            'A', 'Я', CraftOsCharset.CONTINUATION,
+            'A', 'Я',
             CraftOsCharset.toCell(0x81), '\uE041', '\uFFFF',
-            astral[0], astral[1], CraftOsCharset.CONTINUATION, CraftOsCharset.CONTINUATION
+            astralCell
         };
         var bytes = new ByteArrayOutputStream();
-        for (var cell : expected) Utf8.encode(cell, bytes);
+        for (var cell : expected) {
+            var astral = CraftOsCharset.fromAstralCell(cell);
+            Utf8.encode(astral > 0 ? astral : cell, bytes);
+        }
 
         var actual = new char[expected.length];
         assertEquals(bytes.size(), Utf8.readCells(bytes.toByteArray(), 0, bytes.size(), actual, actual.length));
         assertArrayEquals(expected, actual);
+        assertEquals(0x1F642, CraftOsCharset.cellToCodepoint(actual[5]));
     }
 
     @Test
