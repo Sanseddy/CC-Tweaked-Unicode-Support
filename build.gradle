@@ -96,6 +96,10 @@ dependencies {
     cobaltPatchImplementation "org.ow2.asm:asm:9.7"
 }
 
+tasks.withType(JavaExec).configureEach {
+    javaLauncher = javaToolchains.launcherFor(java.toolchain)
+}
+
 def patchedCobaltJar = layout.buildDirectory.file('generated/cobalt/cobalt-0.9.10.jar')
 def patchCobalt = tasks.register('patchCobalt', JavaExec) {
     dependsOn tasks.named('cobaltPatchClasses')
