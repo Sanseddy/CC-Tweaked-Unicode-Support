@@ -6,6 +6,7 @@
     "injectors": {
         "defaultRequire": 1
     },
+    "plugin": "ru.sanseddy.cctweakedunicodesupport.mixin.UnicodeSupportMixinPlugin",
     "client": [
         "AbstractComputerScreenMixin",
         "CustomLecternRendererMixin",
@@ -16,6 +17,7 @@
         "MonitorTextureBufferShaderMixin",
         "PocketItemRendererMixin",
         "PrintoutRendererMixin",
-        "TerminalWidgetMixin"
+        "TerminalWidgetMixin",
+        "compat.hudglasses.HudOverlayMixin"
     ]
 }

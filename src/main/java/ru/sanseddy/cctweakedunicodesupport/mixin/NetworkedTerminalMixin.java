@@ -5,10 +5,7 @@ import dan200.computercraft.core.util.Colour;
 import dan200.computercraft.shared.computer.terminal.NetworkedTerminal;
 import dan200.computercraft.shared.computer.terminal.TerminalState;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.spongepowered.asm.mixin.Overwrite;
 import ru.sanseddy.cctweakedunicodesupport.text.CraftOsCharset;
 import ru.sanseddy.cctweakedunicodesupport.text.Utf8;
 
@@ -18,11 +15,12 @@ import java.io.ByteArrayOutputStream;
 public class NetworkedTerminalMixin {
     private static final String BASE_16 = "0123456789abcdef";
 
-    @Inject(
-        method = "write()Ldan200/computercraft/shared/computer/terminal/TerminalState;",
-        at = @At("HEAD"), cancellable = true
-    )
-    private void cc_tweaked_unicode_support$writeWide(CallbackInfoReturnable<TerminalState> cir) {
+    /**
+     * @author Antigravity
+     * @reason Encode terminal lines to UTF-8 while preserving method return flow for CC: Graphics RETURN injects.
+     */
+    @Overwrite
+    public synchronized TerminalState write() {
         var terminal = (Terminal) (Object) this;
         var width = terminal.getWidth();
         var height = terminal.getHeight();
@@ -49,16 +47,20 @@ public class NetworkedTerminalMixin {
             for (var channel : terminal.getPalette().getColour(i)) contents.write((int) (channel * 255.0) & 0xFF);
         }
 
-        cir.setReturnValue(TerminalStateAccessor.cc_tweaked_unicode_support$create(
+        return TerminalStateAccessor.cc_tweaked_unicode_support$create(
             terminal.isColour(), width, height,
             terminal.getCursorX(), terminal.getCursorY(), terminal.getCursorBlink(),
             terminal.getTextColour(), terminal.getBackgroundColour(),
             contents.toByteArray()
-        ));
+        );
     }
 
-    @Inject(method = "read", at = @At("HEAD"), cancellable = true)
-    private void cc_tweaked_unicode_support$readWide(TerminalState state, CallbackInfo ci) {
+    /**
+     * @author Antigravity
+     * @reason Decode terminal lines from UTF-8 while preserving method tail flow for CC: Graphics TAIL injects.
+     */
+    @Overwrite
+    public synchronized void read(TerminalState state) {
         var accessor = (TerminalStateAccessor) state;
         var terminal = (Terminal) (Object) this;
 
@@ -96,7 +98,5 @@ public class NetworkedTerminalMixin {
         }
 
         terminal.setChanged();
-        ru.sanseddy.cctweakedunicodesupport.compat.CCGraphicsCompat.onNetworkedTerminalRead((NetworkedTerminal) (Object) this, state, ci);
-        ci.cancel();
     }
 }

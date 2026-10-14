@@ -99,7 +99,7 @@ public final class Utf8 {
         return wellFormed(decodeUnchecked(bytes, index, expected), expected) ? expected : 1;
     }
 
-    private static int sequenceLength(String raw, int index) {
+    public static int sequenceLength(String raw, int index) {
         var expected = expectedLength(raw.charAt(index) & 0xFF);
         if (expected == 1 || index + expected > raw.length()) return 1;
         for (var i = index + 1; i < index + expected; i++) {
@@ -124,11 +124,11 @@ public final class Utf8 {
         };
     }
 
-    private static int codepoint(byte[] bytes, int index, int consumed) {
+    public static int codepoint(byte[] bytes, int index, int consumed) {
         return consumed == 1 ? -1 : decodeUnchecked(bytes, index, consumed);
     }
 
-    private static int codepoint(String raw, int index, int consumed) {
+    public static int codepoint(String raw, int index, int consumed) {
         return consumed == 1 ? -1 : decodeUnchecked(raw, index, consumed);
     }
 
