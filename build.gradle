@@ -88,16 +88,20 @@ configurations {
 dependencies {
     compileOnly "cc.tweaked:cc-tweaked-${minecraft_version}-forge:${cc_tweaked_version}"
     compileOnly "cc.tweaked:cobalt:0.9.9"
-    compileOnly "maven.modrinth:cc-graphics:5oEeKdVn"
-    compileOnly "maven.modrinth:cc-terminals:0.1.1"
+
+    // Optional compatibility APIs: used to compile mixins, never bundled or required at runtime.
     compileOnly "maven.modrinth:advancedperipherals:1.21.1-0.8.2a"
     compileOnly "maven.modrinth:cc-hud-glasses:0.1.4-beta"
 
     localRuntime "cc.tweaked:cc-tweaked-${minecraft_version}-forge:${cc_tweaked_version}"
-    localRuntime "maven.modrinth:cc-graphics:5oEeKdVn"
-    localRuntime "maven.modrinth:cc-terminals:0.1.1"
-    localRuntime "maven.modrinth:advancedperipherals:1.21.1-0.8.2a"
-    localRuntime "maven.modrinth:cc-hud-glasses:0.1.4-beta"
+
+    // Enable optional mods for compatibility testing with -PenableCompatMods=true.
+    if (providers.gradleProperty('enableCompatMods').map { it.toBoolean() }.getOrElse(false)) {
+        localRuntime "maven.modrinth:cc-graphics:5oEeKdVn"
+        localRuntime "maven.modrinth:cc-terminals:0.1.1"
+        localRuntime "maven.modrinth:advancedperipherals:1.21.1-0.8.2a"
+        localRuntime "maven.modrinth:cc-hud-glasses:0.1.4-beta"
+    }
 
     testImplementation "org.junit.jupiter:junit-jupiter:5.11.4"
     testImplementation "cc.tweaked:cobalt:0.9.9"
