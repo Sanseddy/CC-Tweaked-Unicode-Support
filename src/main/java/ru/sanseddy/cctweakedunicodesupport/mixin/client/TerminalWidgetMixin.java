@@ -4,6 +4,7 @@ import dan200.computercraft.core.input.UserComputerInput;
 import dan200.computercraft.core.terminal.Terminal;
 import dan200.computercraft.client.gui.widgets.TerminalWidget;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Final;
@@ -11,8 +12,10 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import ru.sanseddy.cctweakedunicodesupport.client.WideGlyphRenderer;
+import ru.sanseddy.cctweakedunicodesupport.compat.CCGraphicsCompat;
 import ru.sanseddy.cctweakedunicodesupport.network.WideCharPayload;
 import ru.sanseddy.cctweakedunicodesupport.text.CraftOsCharset;
 
@@ -123,5 +126,23 @@ public class TerminalWidgetMixin {
         if (column < 0) return;
         computerInput.mouseScroll(deltaY < 0 ? 1 : -1, column + 1, row + 1);
         cir.setReturnValue(true);
+    }
+
+    @Inject(method = "renderWidget", at = @At("HEAD"))
+    private void cc_tweaked_unicode_support$beginWidgetGlyphPass(
+        GuiGraphics graphics, int mouseX, int mouseY, float partialTicks, CallbackInfo ci
+    ) {
+        WideGlyphRenderer.begin();
+    }
+
+    @Inject(method = "renderWidget", at = @At("RETURN"))
+    private void cc_tweaked_unicode_support$flushWidgetGlyphPass(
+        GuiGraphics graphics, int mouseX, int mouseY, float partialTicks, CallbackInfo ci
+    ) {
+        if (CCGraphicsCompat.isGraphicsMode(terminal)) {
+            WideGlyphRenderer.begin();
+            return;
+        }
+        WideGlyphRenderer.flush(graphics.bufferSource());
     }
 }

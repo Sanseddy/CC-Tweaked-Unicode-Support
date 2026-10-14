@@ -42,7 +42,7 @@ public class MonitorBlockEntityRendererMixin {
         if (origin == null) return;
 
         var terminal = origin.getTerminal();
-        if (terminal == null) return;
+        if (terminal == null || ru.sanseddy.cctweakedunicodesupport.compat.CCGraphicsCompat.isGraphicsMode(terminal)) return;
 
         var pose = transform.last().pose();
         var foregroundPose = new org.joml.Matrix4f(pose).translate(0.0f, 0.0f, DEPTH_OFFSET * 2.0f);
