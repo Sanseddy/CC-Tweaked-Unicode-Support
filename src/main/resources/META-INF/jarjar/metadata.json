@@ -6,7 +6,7 @@
         "artifact": "cobalt"
       },
       "version": {
-        "range": "[0.9.10]",
+        "range": "[0.9.10,)",
         "artifactVersion": "0.9.10"
       },
       "path": "META-INF/jarjar/cobalt-0.9.10.jar",

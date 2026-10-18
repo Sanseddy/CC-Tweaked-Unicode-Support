@@ -7,17 +7,5 @@
         "defaultRequire": 1
     },
     "plugin": "ru.sanseddy.cctweakedunicodesupport.mixin.UnicodeSupportMixinPlugin",
-    "client": [
-        "AbstractComputerScreenMixin",
-        "CustomLecternRendererMixin",
-        "DirectFixedWidthFontRendererMixin",
-        "FixedWidthFontRendererInvoker",
-        "FixedWidthFontRendererMixin",
-        "MonitorBlockEntityRendererMixin",
-        "MonitorTextureBufferShaderMixin",
-        "PocketItemRendererMixin",
-        "PrintoutRendererMixin",
-        "TerminalWidgetMixin",
-        "compat.hudglasses.HudOverlayMixin"
-    ]
+    "client": []
 }

@@ -1,14 +1,18 @@
 package ru.sanseddy.cctweakedunicodesupport.mixin;
 
 import dan200.computercraft.api.filesystem.Mount;
+import dan200.computercraft.core.computer.GlobalEnvironment;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import ru.sanseddy.cctweakedunicodesupport.rom.ClasspathMount;
 import ru.sanseddy.cctweakedunicodesupport.rom.RomOverlayMount;
+
+import java.io.InputStream;
 
 /**
  * Overlays Unicode-aware ROM files on top of CC: Tweaked and any third-party mods (like CC: Graphics).
@@ -69,6 +73,27 @@ public abstract class ComputerExecutorMixin {
             return new RomOverlayMount(mount, cc_tweaked_unicode_support$overlay);
         }
         return mount;
+    }
+
+    @Redirect(
+        method = "createLuaMachine",
+        at = @At(
+            value = "INVOKE",
+            target = "Ldan200/computercraft/core/computer/GlobalEnvironment;createResourceFile(Ljava/lang/String;Ljava/lang/String;)Ljava/io/InputStream;"
+        )
+    )
+    private InputStream cc_tweaked_unicode_support$provideUnicodeBios(GlobalEnvironment env, String domain, String subPath) {
+        if ("computercraft".equals(domain) && "lua/bios.lua".equals(subPath)) {
+            var stream = env.createResourceFile("cc_tweaked_unicode_support", "lua/bios.lua");
+            if (stream != null) return stream;
+            stream = ComputerExecutorMixin.class.getResourceAsStream("/data/cc_tweaked_unicode_support/lua/bios.lua");
+            if (stream != null) return stream;
+            stream = ComputerExecutorMixin.class.getClassLoader().getResourceAsStream("data/cc_tweaked_unicode_support/lua/bios.lua");
+            if (stream != null) return stream;
+            stream = ComputerExecutorMixin.class.getClassLoader().getResourceAsStream("data/computercraft/lua/bios.lua");
+            if (stream != null) return stream;
+        }
+        return env.createResourceFile(domain, subPath);
     }
 }
 

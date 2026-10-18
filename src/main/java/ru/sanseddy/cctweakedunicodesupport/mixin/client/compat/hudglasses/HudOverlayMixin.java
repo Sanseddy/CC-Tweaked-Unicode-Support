@@ -1,3 +1,4 @@
+//? if neoforge && <=1.21.1 {
 package ru.sanseddy.cctweakedunicodesupport.mixin.client.compat.hudglasses;
 
 import net.minecraft.client.gui.Font;
@@ -51,3 +52,4 @@ public class HudOverlayMixin {
         return font.drawInBatch(text, x + offsetX, y, color, dropShadow, matrix, buffer, displayMode, backgroundColor, packedLight);
     }
 }
+//?}

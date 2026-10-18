@@ -1,3 +1,4 @@
+//? if <=1.21.1 {
 package ru.sanseddy.cctweakedunicodesupport.mixin.client;
 
 import dan200.computercraft.client.gui.AbstractComputerScreen;
@@ -20,3 +21,4 @@ public class AbstractComputerScreenMixin {
         WideGlyphRenderer.flush(graphics.bufferSource());
     }
 }
+//?}

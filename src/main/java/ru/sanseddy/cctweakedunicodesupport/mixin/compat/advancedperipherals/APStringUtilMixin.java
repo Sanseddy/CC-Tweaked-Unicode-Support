@@ -1,3 +1,4 @@
+//? if neoforge && <=1.21.1 {
 package ru.sanseddy.cctweakedunicodesupport.mixin.compat.advancedperipherals;
 
 import de.srendi.advancedperipherals.common.util.StringUtil;
@@ -24,3 +25,4 @@ public class APStringUtilMixin {
         cir.setReturnValue(Utf8.decode(s));
     }
 }
+//?}

@@ -14,9 +14,6 @@
         "PrinterPeripheralMixin",
         "StringUtilMixin",
         "TermMethodsMixin",
-        "TerminalStateAccessor",
-        "compat.advancedperipherals.APStringUtilMixin",
-        "compat.advancedperipherals.APOverlayObjectMixin",
-        "compat.hudglasses.HudPeripheralMixin"
+        "TerminalStateAccessor"
     ]
 }

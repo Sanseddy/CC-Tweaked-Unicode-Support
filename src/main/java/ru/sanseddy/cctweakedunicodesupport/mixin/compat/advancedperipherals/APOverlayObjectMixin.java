@@ -1,3 +1,4 @@
+//? if neoforge && <=1.21.1 {
 package ru.sanseddy.cctweakedunicodesupport.mixin.compat.advancedperipherals;
 
 import dan200.computercraft.api.lua.LuaTable;
@@ -20,3 +21,4 @@ public class APOverlayObjectMixin {
         }
     }
 }
+//?}

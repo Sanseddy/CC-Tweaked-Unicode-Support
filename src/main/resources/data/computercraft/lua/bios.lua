@@ -392,7 +392,7 @@ function read(_sReplaceChar, _tHistory, _fnComplete, _sDefault)
             term.write(text_sub(sLine, nScroll + 1))
         end
 
-        if nCompletion then
+        if nCompletion and tCompletions and tCompletions[nCompletion] then
             local sCompletion = tCompletions[nCompletion]
             local oldText, oldBg
             if not _bClear then
@@ -489,7 +489,7 @@ function read(_sReplaceChar, _tHistory, _fnComplete, _sDefault)
 
             elseif param == keys.up or param == keys.down then
                 -- Up or down
-                if nCompletion then
+                if nCompletion and tCompletions and #tCompletions > 0 then
                     -- Cycle completions
                     clear()
                     if param == keys.up then

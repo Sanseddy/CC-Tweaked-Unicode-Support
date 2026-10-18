@@ -1,15 +1,49 @@
 plugins {
     id 'java-library'
-    id 'net.neoforged.moddev' version '2.0.91'
+    id 'maven-publish'
+    id 'net.neoforged.moddev' version '2.0.148' apply false
+    id 'net.fabricmc.fabric-loom' version '1.19.1' apply false
+    id 'net.fabricmc.fabric-loom-remap' version '1.19.1' apply false
     id 'idea'
 }
 
-tasks.named('wrapper', Wrapper).configure {
-    distributionType = Wrapper.DistributionType.BIN
+if (project == rootProject) {
+    tasks.named('wrapper', Wrapper).configure {
+        distributionType = Wrapper.DistributionType.BIN
+    }
 }
 
 version = mod_version
 group = mod_group_id
+
+boolean is26 = project.name.startsWith('26.2')
+boolean isFabric = project.name.endsWith('-fabric')
+boolean isNeoForge = project.name.endsWith('-neoforge')
+
+tasks.named('processResources', ProcessResources).configure {
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    if (is26) {
+        exclude 'cc_tweaked_unicode_support-compat.mixins.json'
+    }
+    if (isFabric) {
+        exclude 'META-INF/neoforge.mods.toml'
+        exclude 'META-INF/jarjar/**'
+        exclude 'cc_tweaked_unicode_support-compat.mixins.json'
+    } else if (isNeoForge) {
+        exclude 'fabric.mod.json'
+        exclude 'META-INF/jars/**'
+    }
+}
+
+tasks.named('jar', Jar).configure {
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    from sourceSets.main.output
+    if (rootProject.file('LICENSES').exists()) {
+        from(rootProject.file('LICENSES')) {
+            into 'META-INF/LICENSES'
+        }
+    }
+}
 
 repositories {
     mavenCentral()
@@ -21,53 +55,25 @@ repositories {
         url = 'https://api.modrinth.com/maven'
         content { includeGroup('maven.modrinth') }
     }
+    maven {
+        url = 'https://maven.fabricmc.net/'
+    }
+    maven {
+        url = 'https://maven.neoforged.net/releases/'
+    }
 }
 
 base {
-    archivesName = 'cc-tweaked-unicode-support'
+    archivesName = "${mod_id}-${project.name}"
 }
 
-java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+java.toolchain.languageVersion = JavaLanguageVersion.of(is26 ? 25 : 21)
 
-neoForge {
-    version = project.neo_version
-
-    parchment {
-        mappingsVersion = project.parchment_mappings_version
-        minecraftVersion = project.parchment_minecraft_version
-    }
-
-    runs {
-        client {
-            client()
-            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
-        }
-
-        server {
-            server()
-            programArgument '--nogui'
-            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
-        }
-
-        configureEach {
-            systemProperty 'forge.logging.markers', 'REGISTRIES'
-            logLevel = org.slf4j.event.Level.DEBUG
-        }
-    }
-
-    mods {
-        "${mod_id}" {
-            sourceSet(sourceSets.main)
-        }
-    }
-
-    unitTest {
-        enable()
-        testedMod = mods.getByName(mod_id)
+if (isNeoForge) {
+    configurations {
+        runtimeClasspath.extendsFrom localRuntime
     }
 }
-
-sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 sourceSets {
     cobaltPatch
@@ -81,47 +87,30 @@ configurations {
     cobaltPatchCompileOnly.extendsFrom cobaltOriginal
 }
 
-configurations {
-    runtimeClasspath.extendsFrom localRuntime
-}
-
 dependencies {
-    compileOnly "cc.tweaked:cc-tweaked-${minecraft_version}-forge:${cc_tweaked_version}"
-    compileOnly "cc.tweaked:cobalt:0.9.9"
-    compileOnly "maven.modrinth:cc-graphics:5oEeKdVn"
-    compileOnly "maven.modrinth:cc-terminals:0.1.1"
-    compileOnly "maven.modrinth:advancedperipherals:1.21.1-0.8.2a"
-    compileOnly "maven.modrinth:cc-hud-glasses:0.1.4-beta"
-
-    localRuntime "cc.tweaked:cc-tweaked-${minecraft_version}-forge:${cc_tweaked_version}"
-    localRuntime "maven.modrinth:cc-graphics:5oEeKdVn"
-    localRuntime "maven.modrinth:cc-terminals:0.1.1"
-    localRuntime "maven.modrinth:advancedperipherals:1.21.1-0.8.2a"
-    localRuntime "maven.modrinth:cc-hud-glasses:0.1.4-beta"
+    cobaltOriginal "cc.tweaked:cobalt:0.9.9"
+    cobaltPatchImplementation "org.ow2.asm:asm:9.7"
 
     testImplementation "org.junit.jupiter:junit-jupiter:5.11.4"
     testImplementation "cc.tweaked:cobalt:0.9.9"
-    testImplementation "cc.tweaked:cc-tweaked-${minecraft_version}-forge:${cc_tweaked_version}"
     testImplementation sourceSets.cobaltPatch.output
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"
-
-    cobaltOriginal "cc.tweaked:cobalt:0.9.9"
-    cobaltPatchImplementation "org.ow2.asm:asm:9.7"
 }
 
 def patchedCobaltJar = layout.buildDirectory.file('generated/cobalt/cobalt-0.9.10.jar')
+def originalCobaltFiles = configurations.cobaltOriginal
+def isFab = isFabric
 def patchCobalt = tasks.register('patchCobalt', JavaExec) {
     dependsOn tasks.named('cobaltPatchClasses')
-    classpath = sourceSets.cobaltPatch.runtimeClasspath + configurations.cobaltOriginal
+    classpath = sourceSets.cobaltPatch.runtimeClasspath + originalCobaltFiles
     mainClass = 'ru.sanseddy.cctweakedunicodesupport.build.PatchCobalt'
 
-    inputs.files(configurations.cobaltOriginal)
+    inputs.files(originalCobaltFiles)
     inputs.files(sourceSets.cobaltPatch.output)
+    inputs.property('isFabric', isFab)
     outputs.file(patchedCobaltJar)
 
-    doFirst {
-        args configurations.cobaltOriginal.singleFile, patchedCobaltJar.get().asFile
-    }
+    args originalCobaltFiles.asPath, patchedCobaltJar.get().asFile.absolutePath, isFab.toString()
 }
 
 def verifyPatchedCobalt = tasks.register('verifyPatchedCobalt', JavaExec) {
@@ -133,7 +122,11 @@ def verifyPatchedCobalt = tasks.register('verifyPatchedCobalt', JavaExec) {
 def stagePatchedCobalt = tasks.register('stagePatchedCobalt', Sync) {
     dependsOn patchCobalt
     from patchedCobaltJar
-    into layout.buildDirectory.dir('generated/cobaltResources/META-INF/jarjar')
+    if (isFabric) {
+        into layout.buildDirectory.dir('generated/cobaltResources/META-INF/jars')
+    } else {
+        into layout.buildDirectory.dir('generated/cobaltResources/META-INF/jarjar')
+    }
 }
 
 sourceSets.main.resources.srcDir layout.buildDirectory.dir('generated/cobaltResources')
@@ -145,28 +138,199 @@ tasks.named('check').configure {
     dependsOn verifyPatchedCobalt
 }
 
-var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
-    var replaceProperties = [
-            minecraft_version      : minecraft_version,
-            minecraft_version_range: minecraft_version_range,
-            neo_version            : neo_version,
-            neo_version_range      : neo_version_range,
-            loader_version_range   : loader_version_range,
-            mod_id                 : mod_id,
-            mod_name               : mod_name,
-            mod_license            : mod_license,
-            mod_version            : mod_version,
-            mod_authors            : mod_authors,
-            mod_description        : mod_description,
-            cc_tweaked_version_range: cc_tweaked_version_range
-    ]
-    inputs.properties replaceProperties
-    expand replaceProperties
-    from "src/main/templates"
-    into "build/generated/sources/modMetadata"
+if (isNeoForge) {
+    apply plugin: 'net.neoforged.moddev'
+
+    neoForge {
+        version = project.neo_version
+
+        if (!is26) {
+            parchment {
+                mappingsVersion = project.parchment_mappings_version
+                minecraftVersion = project.parchment_minecraft_version
+            }
+        }
+
+        runs {
+            client {
+                client()
+                systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+            }
+
+            if (!is26) {
+                server {
+                    server()
+                    programArgument '--nogui'
+                    systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+                }
+            }
+
+            configureEach {
+                systemProperty 'forge.logging.markers', 'REGISTRIES'
+                logLevel = org.slf4j.event.Level.DEBUG
+            }
+        }
+
+        mods {
+            "${mod_id}" {
+                sourceSet(sourceSets.main)
+            }
+        }
+
+        unitTest {
+            enable()
+            testedMod = mods.getByName(mod_id)
+        }
+    }
+
+    var mcVer = is26 ? '26.2' : (project.findProperty('minecraft_version') ?: '1.21.1')
+    dependencies {
+        compileOnly "cc.tweaked:cc-tweaked-${mcVer}-forge:${project.cc_tweaked_version}"
+        compileOnly "cc.tweaked:cobalt:0.9.9"
+        localRuntime "cc.tweaked:cc-tweaked-${mcVer}-forge:${project.cc_tweaked_version}"
+        localRuntime files(patchedCobaltJar) {
+            builtBy patchCobalt
+        }
+        testImplementation "cc.tweaked:cc-tweaked-${mcVer}-forge:${project.cc_tweaked_version}"
+
+        if (!is26) {
+            compileOnly "maven.modrinth:cc-graphics:5oEeKdVn"
+            compileOnly "maven.modrinth:cc-terminals:0.1.1"
+            compileOnly "maven.modrinth:advancedperipherals:1.21.1-0.8.2a"
+            compileOnly "maven.modrinth:cc-hud-glasses:0.1.4-beta"
+
+            localRuntime "maven.modrinth:cc-graphics:5oEeKdVn"
+            localRuntime "maven.modrinth:cc-terminals:0.1.1"
+            localRuntime "maven.modrinth:advancedperipherals:1.21.1-0.8.2a"
+            localRuntime "maven.modrinth:cc-hud-glasses:0.1.4-beta"
+        }
+    }
+
+    var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
+        var mcRange = project.findProperty('minecraft_version_range') ?: (is26 ? '[26.2]' : '[1.21.1]')
+        var neoVer = project.findProperty('neo_version') ?: (is26 ? '26.2.0.93' : '21.1.262')
+        var neoRange = project.findProperty('neo_version_range') ?: (is26 ? '[26.2.0,)' : '[21.1.176,21.2)')
+        var loaderRange = project.findProperty('loader_version_range') ?: (is26 ? '[1,)' : '[4,)')
+        var ccRange = project.findProperty('cc_tweaked_version_range') ?: '[1.120.2]'
+
+        var replaceProperties = [
+                minecraft_version      : mcVer,
+                minecraft_version_range: mcRange,
+                neo_version            : neoVer,
+                neo_version_range      : neoRange,
+                loader_version_range   : loaderRange,
+                mod_id                 : mod_id,
+                mod_name               : mod_name,
+                mod_license            : mod_license,
+                mod_version            : mod_version,
+                mod_authors            : mod_authors,
+                mod_description        : mod_description,
+                cc_tweaked_version_range: ccRange,
+                mod_icon_property      : is26 ? 'iconFile="cc_tweaked_unicode_support.png"' : 'logoFile="cc_tweaked_unicode_support.png"',
+                additional_mixins      : is26 ? """
+[[mixins]]
+config="${mod_id}-client.mixins.json"
+""" : """
+[[mixins]]
+config="${mod_id}-client.mixins.json"
+
+[[mixins]]
+config="${mod_id}-compat.mixins.json"
+"""
+        ]
+        inputs.properties replaceProperties
+        expand replaceProperties
+        from rootProject.file("src/main/templates")
+        include "META-INF/**"
+        into "build/generated/sources/modMetadata"
+    }
+    sourceSets.main.resources.srcDir generateModMetadata
+    neoForge.ideSyncTask generateModMetadata
+} else if (isFabric) {
+    if (is26) {
+        apply plugin: 'net.fabricmc.fabric-loom'
+    } else {
+        apply plugin: 'net.fabricmc.fabric-loom-remap'
+    }
+
+    var mcVer = is26 ? '26.2' : (project.findProperty('minecraft_version') ?: '1.21.1')
+
+    dependencies {
+        minecraft "com.mojang:minecraft:${mcVer}"
+        compileOnly "cc.tweaked:cobalt:0.9.9"
+
+        if (!is26) {
+            mappings loom.officialMojangMappings()
+            modImplementation "net.fabricmc:fabric-loader:${project.findProperty('fabric_loader_version') ?: '0.16.9'}"
+            modImplementation "net.fabricmc.fabric-api:fabric-api:${project.findProperty('fabric_api_version') ?: '0.106.1+1.21.1'}"
+            modImplementation "cc.tweaked:cc-tweaked-1.21.1-fabric:${project.cc_tweaked_version}"
+
+            // Test environment addons for Fabric 1.21.1
+            modImplementation "maven.modrinth:cc-graphics:WsSw5tAS"
+            modImplementation "maven.modrinth:cc-terminals:SdSTi2ie"
+
+            modLocalRuntime files(patchedCobaltJar) {
+                builtBy patchCobalt
+            }
+        } else {
+            implementation "net.fabricmc:fabric-loader:${project.findProperty('fabric_loader_version') ?: '0.19.5'}"
+            implementation "net.fabricmc.fabric-api:fabric-api:${project.findProperty('fabric_api_version') ?: '0.161.0+26.2'}"
+            implementation "cc.tweaked:cc-tweaked-26.2-fabric:${project.cc_tweaked_version}"
+
+            runtimeOnly files(patchedCobaltJar) {
+                builtBy patchCobalt
+            }
+        }
+    }
+
+    var generateFabricModMetadata = tasks.register("generateFabricModMetadata", ProcessResources) {
+        var replaceProps = [
+            'minecraft_version': mcVer,
+            'mod_id': project.mod_id,
+            'mod_name': project.mod_name,
+            'mod_version': project.mod_version,
+            'mod_description': project.mod_description,
+            'mod_license': project.mod_license,
+            'fabric_mixins': '"cc_tweaked_unicode_support.mixins.json",\n    "cc_tweaked_unicode_support-client.mixins.json"'
+        ]
+        inputs.properties replaceProps
+        expand replaceProps
+        from rootProject.file("src/main/templates")
+        include "fabric.mod.json"
+        into "build/generated/sources/modMetadata"
+    }
+    sourceSets.main.resources.srcDir generateFabricModMetadata
+
+    if (!is26) {
+        tasks.named('remapJar', net.fabricmc.loom.task.RemapJarTask).configure {
+            duplicatesStrategy = DuplicatesStrategy.INCLUDE
+            from zipTree(tasks.named('jar').flatMap { it.archiveFile })
+        }
+    }
 }
-sourceSets.main.resources.srcDir generateModMetadata
-neoForge.ideSyncTask generateModMetadata
+
+var collectDir = rootProject.file('dist')
+
+tasks.register('collectJar', Copy) {
+    group = 'build'
+    description = 'Copies the built mod jar to root dist/ directory'
+    destinationDir = collectDir
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+
+    if (isFabric) {
+        if (is26) {
+            from tasks.named('jar')
+        } else {
+            from tasks.named('remapJar')
+        }
+    } else if (isNeoForge) {
+        from tasks.named('jar')
+    }
+}
+
+tasks.named('assemble').configure {
+    finalizedBy 'collectJar'
+}
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
@@ -174,17 +338,13 @@ tasks.withType(JavaCompile).configureEach {
 
 tasks.named('test', Test).configure {
     useJUnitPlatform()
+    dependsOn patchCobalt
+    classpath = files(patchedCobaltJar) + classpath
 }
 
 tasks.withType(AbstractArchiveTask).configureEach {
     preserveFileTimestamps = false
     reproducibleFileOrder = true
-}
-
-tasks.named('jar', Jar).configure {
-    from('LICENSES') {
-        into 'META-INF/LICENSES'
-    }
 }
 
 idea {
