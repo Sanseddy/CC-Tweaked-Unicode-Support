@@ -21,7 +21,7 @@ class RomOverlayMountTest {
     void overlayTakesPrecedenceOverBase() throws IOException {
         var base = new ClasspathMount("data/computercraft/lua/rom")
             .addFile("apis/fs.lua");
-        var overlay = new ClasspathMount("data/computercraft/lua/rom")
+        var overlay = new ClasspathMount("data/cc_tweaked_unicode_support/lua/rom")
             .addFile("apis/window.lua");
 
         var combined = new RomOverlayMount(base, overlay);

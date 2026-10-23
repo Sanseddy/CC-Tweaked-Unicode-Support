@@ -1,0 +1,18 @@
+{
+    "required": true,
+    "package": "ru.sanseddy.cctweakedunicodesupport.mixin",
+    "minVersion": "0.8",
+    "compatibilityLevel": "JAVA_21",
+    "injectors": {
+        "defaultRequire": 1
+    },
+    "plugin": "ru.sanseddy.cctweakedunicodesupport.mixin.UnicodeSupportMixinPlugin",
+    "mixins": [
+        "compat.advancedperipherals.APStringUtilMixin",
+        "compat.advancedperipherals.APOverlayObjectMixin",
+        "compat.hudglasses.HudPeripheralMixin"
+    ],
+    "client": [
+        "client.compat.hudglasses.HudOverlayMixin"
+    ]
+}

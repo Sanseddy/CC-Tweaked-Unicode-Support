@@ -1,3 +1,4 @@
+//? if neoforge && <=1.21.1 {
 package ru.sanseddy.cctweakedunicodesupport.mixin.compat.hudglasses;
 
 import dan200.computercraft.api.lua.Coerced;
@@ -47,3 +48,4 @@ public abstract class HudPeripheralMixin {
         ci.cancel();
     }
 }
+//?}

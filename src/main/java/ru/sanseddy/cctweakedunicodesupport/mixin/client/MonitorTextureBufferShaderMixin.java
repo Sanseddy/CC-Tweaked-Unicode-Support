@@ -1,3 +1,4 @@
+//? if <=1.21.1 {
 package ru.sanseddy.cctweakedunicodesupport.mixin.client;
 
 import dan200.computercraft.client.render.monitor.MonitorTextureBufferShader;
@@ -35,3 +36,4 @@ public class MonitorTextureBufferShaderMixin {
         ci.cancel();
     }
 }
+//?}

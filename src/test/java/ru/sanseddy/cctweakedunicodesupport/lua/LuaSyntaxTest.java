@@ -20,6 +20,7 @@ class LuaSyntaxTest {
     @ParameterizedTest
     @ValueSource(strings = {
         "/data/computercraft/lua/bios.lua",
+        "/data/cc_tweaked_unicode_support/lua/bios.lua",
         "/data/computercraft/lua/rom/apis/textutils.lua",
         "/data/computercraft/lua/rom/programs/edit.lua",
         "/data/computercraft/lua/rom/programs/help.lua",

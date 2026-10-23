@@ -1,3 +1,4 @@
+//? if <=1.21.1 {
 package ru.sanseddy.cctweakedunicodesupport.mixin.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -22,3 +23,4 @@ public class PocketItemRendererMixin {
         WideGlyphRenderer.flush(bufferSource);
     }
 }
+//?}

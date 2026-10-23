@@ -1,3 +1,4 @@
+//? if <=1.21.1 {
 package ru.sanseddy.cctweakedunicodesupport.mixin.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -58,14 +59,12 @@ public class MonitorBlockEntityRendererMixin {
             var line = terminal.getLine(row);
             var colourLine = terminal.getTextColourLine(row);
 
-            var offset = 0;
             for (var col = 0; col < line.length(); col++) {
                 var cell = line.charAt(col);
                 if (!WideGlyphRenderer.isLead(line, col)) continue;
 
                 var codepoint = WideGlyphRenderer.codepoint(line, col);
-                var glyphX = offset;
-                offset += WideGlyphRenderer.cellWidth();
+                var glyphX = col * WideGlyphRenderer.cellWidth();
 
                 if (cell == 0 || cell == ' ') continue;
 
@@ -107,14 +106,12 @@ public class MonitorBlockEntityRendererMixin {
             var line = terminal.getLine(row);
             var colourLine = terminal.getTextColourLine(row);
 
-            var offset = 0;
             for (var col = 0; col < line.length(); col++) {
                 var cell = line.charAt(col);
                 if (!WideGlyphRenderer.isLead(line, col)) continue;
 
                 var codepoint = WideGlyphRenderer.codepoint(line, col);
-                var glyphX = offset;
-                offset += WideGlyphRenderer.cellWidth();
+                var glyphX = col * WideGlyphRenderer.cellWidth();
 
                 if (cell == 0 || cell == ' ') continue;
 
@@ -131,3 +128,4 @@ public class MonitorBlockEntityRendererMixin {
         }
     }
 }
+//?}

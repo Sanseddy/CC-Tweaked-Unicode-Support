@@ -5,12 +5,16 @@ import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
 public class UnicodeSupportMixinPlugin implements IMixinConfigPlugin {
+    private String mixinPackage;
+
     @Override
     public void onLoad(String mixinPackage) {
+        this.mixinPackage = mixinPackage;
     }
 
     @Override
@@ -27,6 +31,23 @@ public class UnicodeSupportMixinPlugin implements IMixinConfigPlugin {
             return isModLoaded("hudglassescc", "org.semakol.hudglassescc.Hudglassescc");
         }
         return true;
+    }
+
+    private static boolean isClassPresent(String className) {
+        try {
+            Class.forName(className, false, UnicodeSupportMixinPlugin.class.getClassLoader());
+            return true;
+        } catch (Throwable ignored) {
+        }
+        try {
+            ClassLoader contextCl = Thread.currentThread().getContextClassLoader();
+            if (contextCl != null) {
+                Class.forName(className, false, contextCl);
+                return true;
+            }
+        } catch (Throwable ignored) {
+        }
+        return false;
     }
 
     private static boolean isModLoaded(String modId, String fallbackClassName) {
@@ -67,19 +88,7 @@ public class UnicodeSupportMixinPlugin implements IMixinConfigPlugin {
         }
 
         if (fallbackClassName != null) {
-            try {
-                Class.forName(fallbackClassName, false, UnicodeSupportMixinPlugin.class.getClassLoader());
-                return true;
-            } catch (Throwable ignored) {
-            }
-            try {
-                ClassLoader contextCl = Thread.currentThread().getContextClassLoader();
-                if (contextCl != null) {
-                    Class.forName(fallbackClassName, false, contextCl);
-                    return true;
-                }
-            } catch (Throwable ignored) {
-            }
+            return isClassPresent(fallbackClassName);
         }
 
         return false;
@@ -91,7 +100,30 @@ public class UnicodeSupportMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public List<String> getMixins() {
-        return null;
+        if (this.mixinPackage == null || !this.mixinPackage.endsWith(".client")) {
+            return null;
+        }
+        List<String> list = new ArrayList<>();
+        String[] candidates = {
+            "AbstractComputerScreenMixin",
+            "CustomLecternRendererMixin",
+            "DirectFixedWidthFontRendererMixin",
+            "FixedWidthFontRendererInvoker",
+            "FixedWidthFontRendererMixin",
+            "MonitorBlockEntityRendererMixin",
+            "MonitorTextureBufferShaderMixin",
+            "PocketItemRendererMixin",
+            "PrintoutRendererMixin",
+            "TerminalWidgetMixin"
+        };
+        for (String candidate : candidates) {
+            String res = this.mixinPackage.replace('.', '/') + "/" + candidate + ".class";
+            if (getClass().getClassLoader().getResource(res) != null
+                || UnicodeSupportMixinPlugin.class.getResource("/" + res) != null) {
+                list.add(candidate);
+            }
+        }
+        return list;
     }
 
     @Override
