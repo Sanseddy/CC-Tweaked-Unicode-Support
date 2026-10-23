@@ -97,6 +97,10 @@ dependencies {
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 }
 
+tasks.withType(JavaExec).configureEach {
+    javaLauncher = javaToolchains.launcherFor(java.toolchain)
+}
+
 def patchedCobaltJar = layout.buildDirectory.file('generated/cobalt/cobalt-0.9.10.jar')
 def originalCobaltFiles = configurations.cobaltOriginal
 def isFab = isFabric
