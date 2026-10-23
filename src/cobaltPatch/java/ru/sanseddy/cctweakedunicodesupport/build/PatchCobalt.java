@@ -8,6 +8,7 @@ import org.objectweb.asm.Opcodes;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
@@ -19,16 +20,31 @@ import java.util.jar.JarOutputStream;
 public final class PatchCobalt {
     private static final String OPERATION_HELPER = "org/squiddev/cobalt/OperationHelper.class";
     private static final String UNICODE_LENGTH = "org/squiddev/cobalt/UnicodeLength.class";
+    private static final String FABRIC_MOD_JSON = "fabric.mod.json";
+    private static final String FABRIC_METADATA = """
+        {
+          "schemaVersion": 1,
+          "id": "cc_tweaked_cobalt",
+          "version": "0.9.10",
+          "name": "cobalt",
+          "custom": {
+            "fabric-loom:generated": true
+          }
+        }
+        """;
     private static final long FIXED_TIME = 315532800000L;
 
     private PatchCobalt() {
     }
 
     public static void main(String[] args) throws IOException {
-        if (args.length != 2) throw new IllegalArgumentException("Expected input and output Cobalt jars");
+        if (args.length != 2 && args.length != 3) {
+            throw new IllegalArgumentException("Expected input and output Cobalt jars, and optionally an isFabric flag");
+        }
 
         var input = Path.of(args[0]);
         var output = Path.of(args[1]);
+        var fabric = args.length == 3 && Boolean.parseBoolean(args[2]);
         Files.createDirectories(output.getParent());
 
         try (var jar = new JarFile(input.toFile());
@@ -45,6 +61,7 @@ public final class PatchCobalt {
                     bytes = stream.readAllBytes();
                 }
 
+                if (fabric && entry.getName().equals(FABRIC_MOD_JSON)) continue;
                 if (entry.getName().equals(OPERATION_HELPER)) bytes = patchOperationHelper(bytes);
                 writeEntry(out, entry.getName(), bytes);
                 written.add(entry.getName());
@@ -57,6 +74,10 @@ public final class PatchCobalt {
             try (var stream = requiredResource("/" + UNICODE_LENGTH)) {
                 writeEntry(out, UNICODE_LENGTH, stream.readAllBytes());
             }
+
+            // Fabric only loads nested jars that are mods. Reuse the id Loom generated for CC: Tweaked's
+            // bundled Cobalt, so the higher version here replaces it.
+            if (fabric) writeEntry(out, FABRIC_MOD_JSON, FABRIC_METADATA.getBytes(StandardCharsets.UTF_8));
         }
     }
 
