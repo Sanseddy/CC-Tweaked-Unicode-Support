@@ -25,7 +25,7 @@ public final class PatchCobalt {
     }
 
     public static void main(String[] args) throws IOException {
-        if (args.length != 2) throw new IllegalArgumentException("Expected input and output Cobalt jars");
+        if (args.length < 2) throw new IllegalArgumentException("Expected input and output Cobalt jars");
 
         var input = Path.of(args[0]);
         var output = Path.of(args[1]);
@@ -106,3 +106,4 @@ public final class PatchCobalt {
         out.closeEntry();
     }
 }
+
