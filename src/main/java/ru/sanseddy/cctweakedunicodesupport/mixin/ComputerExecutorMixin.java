@@ -1,7 +1,8 @@
 package ru.sanseddy.cctweakedunicodesupport.mixin;
 
 import dan200.computercraft.api.filesystem.Mount;
-import dan200.computercraft.core.computer.GlobalEnvironment;
+import dan200.computercraft.core.lua.ILuaMachine;
+import dan200.computercraft.core.lua.MachineEnvironment;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -75,25 +76,39 @@ public abstract class ComputerExecutorMixin {
         return mount;
     }
 
+    @Unique
+    private static InputStream cc_tweaked_unicode_support$getUnicodeBios() {
+        var stream = ComputerExecutorMixin.class.getResourceAsStream("/data/cc_tweaked_unicode_support/lua/bios.lua");
+        if (stream != null) return stream;
+        var cl = ComputerExecutorMixin.class.getClassLoader();
+        if (cl != null) {
+            stream = cl.getResourceAsStream("data/cc_tweaked_unicode_support/lua/bios.lua");
+            if (stream != null) return stream;
+            stream = cl.getResourceAsStream("data/computercraft/lua/bios.lua");
+            if (stream != null) return stream;
+        }
+        var ccl = Thread.currentThread().getContextClassLoader();
+        if (ccl != null) {
+            stream = ccl.getResourceAsStream("data/cc_tweaked_unicode_support/lua/bios.lua");
+            if (stream != null) return stream;
+            stream = ccl.getResourceAsStream("data/computercraft/lua/bios.lua");
+            if (stream != null) return stream;
+        }
+        return null;
+    }
+
     @Redirect(
         method = "createLuaMachine",
         at = @At(
             value = "INVOKE",
-            target = "Ldan200/computercraft/core/computer/GlobalEnvironment;createResourceFile(Ljava/lang/String;Ljava/lang/String;)Ljava/io/InputStream;"
+            target = "Ldan200/computercraft/core/lua/ILuaMachine$Factory;create(Ldan200/computercraft/core/lua/MachineEnvironment;Ljava/io/InputStream;)Ldan200/computercraft/core/lua/ILuaMachine;"
         )
     )
-    private InputStream cc_tweaked_unicode_support$provideUnicodeBios(GlobalEnvironment env, String domain, String subPath) {
-        if ("computercraft".equals(domain) && "lua/bios.lua".equals(subPath)) {
-            var stream = env.createResourceFile("cc_tweaked_unicode_support", "lua/bios.lua");
-            if (stream != null) return stream;
-            stream = ComputerExecutorMixin.class.getResourceAsStream("/data/cc_tweaked_unicode_support/lua/bios.lua");
-            if (stream != null) return stream;
-            stream = ComputerExecutorMixin.class.getClassLoader().getResourceAsStream("data/cc_tweaked_unicode_support/lua/bios.lua");
-            if (stream != null) return stream;
-            stream = ComputerExecutorMixin.class.getClassLoader().getResourceAsStream("data/computercraft/lua/bios.lua");
-            if (stream != null) return stream;
+    private ILuaMachine cc_tweaked_unicode_support$createWithUnicodeBios(
+        ILuaMachine.Factory factory, MachineEnvironment environment, InputStream bios
+    ) throws Exception {
+        try (var unicodeBios = cc_tweaked_unicode_support$getUnicodeBios()) {
+            return factory.create(environment, unicodeBios != null ? unicodeBios : bios);
         }
-        return env.createResourceFile(domain, subPath);
     }
 }
-
