@@ -12,6 +12,7 @@ out
 .idea
 
 build/
+!src/**/build/
 .gradle
 
 eclipse
@@ -25,4 +26,5 @@ dist/
 .stonecutter/
 **/logs/
 **/config/
+
 
