@@ -11,8 +11,7 @@ out
 *.iml
 .idea
 
-/build
-/versions
+**/build
 .gradle
 
 eclipse
