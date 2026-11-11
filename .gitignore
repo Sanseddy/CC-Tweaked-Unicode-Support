@@ -11,7 +11,8 @@ out
 *.iml
 .idea
 
-**/build
+build/
+!src/**/build/
 .gradle
 
 eclipse
