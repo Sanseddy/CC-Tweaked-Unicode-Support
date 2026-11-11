@@ -1,17 +1,18 @@
 package ru.sanseddy.cctweakedunicodesupport.mixin;
 
 import dan200.computercraft.api.filesystem.Mount;
-import dan200.computercraft.core.lua.ILuaMachine;
-import dan200.computercraft.core.lua.MachineEnvironment;
+import dan200.computercraft.core.computer.GlobalEnvironment;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Group;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import ru.sanseddy.cctweakedunicodesupport.rom.ClasspathMount;
 import ru.sanseddy.cctweakedunicodesupport.rom.RomOverlayMount;
+import ru.sanseddy.cctweakedunicodesupport.rom.UnicodeBios;
 
 import java.io.InputStream;
 
@@ -76,39 +77,32 @@ public abstract class ComputerExecutorMixin {
         return mount;
     }
 
-    @Unique
-    private static InputStream cc_tweaked_unicode_support$getUnicodeBios() {
-        var stream = ComputerExecutorMixin.class.getResourceAsStream("/data/cc_tweaked_unicode_support/lua/bios.lua");
-        if (stream != null) return stream;
-        var cl = ComputerExecutorMixin.class.getClassLoader();
-        if (cl != null) {
-            stream = cl.getResourceAsStream("data/cc_tweaked_unicode_support/lua/bios.lua");
-            if (stream != null) return stream;
-            stream = cl.getResourceAsStream("data/computercraft/lua/bios.lua");
-            if (stream != null) return stream;
-        }
-        var ccl = Thread.currentThread().getContextClassLoader();
-        if (ccl != null) {
-            stream = ccl.getResourceAsStream("data/cc_tweaked_unicode_support/lua/bios.lua");
-            if (stream != null) return stream;
-            stream = ccl.getResourceAsStream("data/computercraft/lua/bios.lua");
-            if (stream != null) return stream;
-        }
-        return null;
-    }
-
+    // CC: Tweaked 1.121.0 replaced createResourceFile with getLuaBios. Exactly one
+    // redirect must match, so both APIs work without silently losing Unicode support.
+    @Group(name = "unicodeBios", min = 1, max = 1)
     @Redirect(
         method = "createLuaMachine",
         at = @At(
             value = "INVOKE",
-            target = "Ldan200/computercraft/core/lua/ILuaMachine$Factory;create(Ldan200/computercraft/core/lua/MachineEnvironment;Ljava/io/InputStream;)Ldan200/computercraft/core/lua/ILuaMachine;"
-        )
+            target = "Ldan200/computercraft/core/computer/GlobalEnvironment;createResourceFile(Ljava/lang/String;Ljava/lang/String;)Ljava/io/InputStream;"
+        ),
+        require = 0
     )
-    private ILuaMachine cc_tweaked_unicode_support$createWithUnicodeBios(
-        ILuaMachine.Factory factory, MachineEnvironment environment, InputStream bios
-    ) throws Exception {
-        try (var unicodeBios = cc_tweaked_unicode_support$getUnicodeBios()) {
-            return factory.create(environment, unicodeBios != null ? unicodeBios : bios);
-        }
+    private InputStream cc_tweaked_unicode_support$provideLegacyUnicodeBios(GlobalEnvironment env, String domain, String subPath) {
+        return UnicodeBios.open();
+    }
+
+    @Group(name = "unicodeBios", min = 1, max = 1)
+    @Redirect(
+        method = "createLuaMachine",
+        at = @At(
+            value = "INVOKE",
+            target = "Ldan200/computercraft/core/computer/GlobalEnvironment;getLuaBios()Ljava/io/InputStream;"
+        ),
+        require = 0
+    )
+    private InputStream cc_tweaked_unicode_support$provideUnicodeBios(GlobalEnvironment env) {
+        return UnicodeBios.open();
     }
 }
+

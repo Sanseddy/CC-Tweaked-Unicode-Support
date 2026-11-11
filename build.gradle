@@ -273,7 +273,9 @@ config="${mod_id}-compat.mixins.json"
             modImplementation "maven.modrinth:cc-graphics:WsSw5tAS"
             modImplementation "maven.modrinth:cc-terminals:SdSTi2ie"
 
-            modLocalRuntime files(patchedCobaltJar) {
+            // Not modLocalRuntime: Loom resolves mod* configurations at configuration time,
+            // before patchCobalt can run. Cobalt has no Minecraft references, so no remapping is needed.
+            runtimeOnly files(patchedCobaltJar) {
                 builtBy patchCobalt
             }
         } else {
